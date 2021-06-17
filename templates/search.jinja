@@ -1,7 +1,7 @@
 {% extends "base.jinja" %}
 
 {% block header %}
-  <h1>{% block title %} Поиск {% endblock %}</h1>
+  <h1>{% block title %} Search {% endblock %}</h1>
 {% endblock %}
 
 {% block content %}
@@ -10,12 +10,12 @@
     <table>
         <thead>
             <tr>
-                <th>Поле</th>
-                <th>Значение</th>
+                <th>Field</th>
+                <th>Value</th>
             </tr>
         </thead>
         <tr>
-            <th><label><input name="field" type="hidden" value="all"></label>По всем полям</th>
+            <th><label><input name="field" type="hidden" value="all"></label>For all fields</th>
             <th><label><input name="value"></label></th>
         </tr>
         {% for field in fields %}
@@ -25,7 +25,7 @@
           </tr>
         {% endfor %}
     </table>
-    <input type="submit" value="Поиск">
+    <input type="submit" value="Search">
     </form>
 </article>
 {% endblock %}

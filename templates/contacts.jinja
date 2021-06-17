@@ -2,7 +2,7 @@
 
 {% block header %}
   <h1>{% block title %}{% endblock %}</h1>
-    <a class="action" href="{{ url_for('new_record') }}">Add record</a>
+    <a class="action" href="{{ url_for('new_contact') }}">Add record</a>
     <a class="action" href="{{ url_for('search') }}">Search</a>
 {% endblock %}
 
@@ -16,13 +16,13 @@
             <th class = "cell">Birthday</th>
             <th class = "cell">Note</th>
       </tr>
-  {% for id, record in records.items() %}
+  {% for id, contact in contacts.items() %}
       <tr>
-            <td class = "cell"><a class="action" href="{{ url_for('record', record_id=id) }}">{{ record }}</a></td>
-            <td class = "cell">{{ record.get_phone() }}</td>
-            <td class = "cell">{{ record.get_mail() }}</td>
-            <td class = "cell">{{ record.get_birthday() }}</td>
-            <td class = "cell">{{ record.get_note() }}</td>
+            <td class = "cell"><a class="action" href="{{ url_for('contact', contact_id=id) }}">{{ contact }}</a></td>
+            <td class = "cell">{{ contact.get_phone() }}</td>
+            <td class = "cell">{{ contact.get_mail() }}</td>
+            <td class = "cell">{{ contact.get_birthday() }}</td>
+            <td class = "cell">{{ contact.get_note() }}</td>
       </tr>
   {% endfor %}
   </table>

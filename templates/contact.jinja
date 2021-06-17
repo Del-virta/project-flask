@@ -1,8 +1,8 @@
 {% extends "base.jinja" %}
 
 {% block header %}
-  <h1>{% block title %} Редактировать запись {% endblock %}</h1>
-    <a class="action" href="{{ url_for('delete_developer', developer_id=developer_id) }}">Удалить запись</a>
+  <h1>{% block title %} Edit record {% endblock %}</h1>
+    <a class="action" href="{{ url_for('delete_contact', contact_id=contact_id) }}"> Delete record </a>
 {% endblock %}
 
 {% block content %}
@@ -11,11 +11,11 @@
     <table>
         <thead>
             <tr>
-                <th>Поле</th>
-                <th>Значение</th>
+                <th>Field</th>
+                <th>Value</th>
             </tr>
         </thead>
-        {% for idx, field in developer %}
+        {% for idx, field in contact %}
           <tr>
             <th>{{ field.field_description }}</th>
             <th>
@@ -26,17 +26,17 @@
                     </label>
             </th>
               <th>
-                  <a href="{{ url_for("delete_field", developer_id=developer_id, field_index=idx) }}">
-                      Удалить
+                  <a href="{{ url_for("delete_field", contact_id=contact_id, field_index=idx) }}">
+                      Delete
                   </a>
               </th>
           </tr>
         {% endfor %}
     </table>
-    <input type="submit" value="Сохранить">
+    <input type="submit" value="Save">
     </form>
 <form method="post">
-  <label for="type">Выберите тип поля</label>
+  <label for="type">Choose field type</label>
   <select name="type" id="type">
       {% for field in fields %}
         <option value="{{ field }}">{{ field }}</option>
@@ -44,7 +44,7 @@
   </select>
 {#  <br><br>#}
     <label><input name="value" value="" required></label>
-  <input type="submit" value="Добавить">
+  <input type="submit" value="Add">
 </form>
 </article>
 {% endblock %}

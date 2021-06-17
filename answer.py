@@ -14,6 +14,7 @@ from flask import (
 import re
 import json
 import statistics
+from datetime import datetime
 
 
 class IncorrectInput(Exception):
@@ -30,31 +31,9 @@ def index_error_decorator(function):
             result = function(*args)
             return result
         except ValueError:
-            raise IncorrectInput(f"Переданное значение индекса не является целым числом")
+            raise IncorrectInput(f"Index value is not integer!")
 
     return inner
-
-
-def get_rate_stat(developers):
-    rates = []
-    stat = {"mean": None, "min": None, "max": None, "item_number": 0, "total":0}
-    
-    for developer in developers:
-        rate = developer.get_rate()
-        if rate:
-            rates.append(rate)
-    
-    if rates:
-        stat.update(
-            {
-                "mean": statistics.mean(rates),
-                "min": min(rates),
-                "max": max(rates),
-                "item_number": len(rates),
-                "total": sum(rates)
-            }
-        )
-    return stat
 
 
 class DataField:
@@ -77,24 +56,21 @@ class DataField:
         return f"{self.field_description}: {self.value}"
 
 
-class FirstNameField(DataField):
+class NameField(DataField):
     field_description = "Name"
 
 
-class LastNameField(DataField):
-    field_description = "Surname"
+class NoteField(DataField):
+    field_description = "Note"
 
 
-class OrganizationField(DataField):
-    field_description = "Organization"
+class BirthdayField(DataField):
+    field_description = "Birthday"
 
-
-class CityField(DataField):
-    field_description = "City"
-
-
-class SkillField(DataField):
-    field_description = "Skill"
+    def validate(self, value: str):
+        if not datetime.strptime(value, '%d.%m.%Y'):
+            raise IncorrectInput(f"{value} is not a date dd.mm.yyy!")
+        self.value = value
 
 
 class PhoneField(DataField):
@@ -134,31 +110,12 @@ class EmailField(DataField):
         self.value = value
 
 
-class RateField(DataField):
-    field_description = "Rate"
-
-    def __contains__(self, item):
-        return item in str(self.value)
-
-    def __eq__(self, other):
-        try:
-            return float(other) == self.value
-        except (ValueError, TypeError):
-            return False
-
-    def validate(self, value):
-        try:
-            self.value = float(value)
-        except ValueError:
-            raise IncorrectInput(f"value {value} can't be converted to float")
-
-
 REGISTERED_FIELDS = {
-    FirstNameField.field_description: FirstNameField,
-    CityField.field_description: CityField,
-    SkillField.field_description: SkillField,
+    NameField.field_description: NameField,
     PhoneField.field_description: PhoneField,
-    RateField.field_description: RateField,
+    EmailField.field_description: EmailField,
+    BirthdayField.field_description: BirthdayField,
+    NoteField.field_description: NoteField
 }
 
 
@@ -173,12 +130,13 @@ def field_decoder(field_dict):
     return field
 
 
-class Developer:
+class Contact:
     def __init__(self):
         self.fields = []
         self.phone = ""
-        self.skill = ""
-        self.city = ""
+        self.birthday = ""
+        self.mail = ""
+        self.note = ""
 
     def __len__(self):
         return len(self.fields)
@@ -192,16 +150,16 @@ class Developer:
     def to_json(self):
         return {"fields": [field.to_json() for field in self.fields]}
 
-    def from_json(self, dict_developer):
-        field_list = dict_developer["fields"]
+    def from_json(self, dict_contact):
+        field_list = dict_contact["fields"]
         if field_list:
             for field_dict in field_list:
                 field = field_decoder(field_dict)
                 self.add(field)
 
-    def get_rate(self):
+    def get_birthday(self):
         for field in self.fields:
-            if field.field_description == "Rate":
+            if field.field_description == "Birthday":
                 return field.value
 
     def get_phone(self):
@@ -213,28 +171,22 @@ class Developer:
 
     def name(self):
         names = []
-        surnames = []
         for field in self.fields:
             if field.field_description == "Name":
                 names.append(field.value)
-            if field.field_description == "Surname":
-                surnames.append(field.value)
-
         name = " ".join(names) if names else ""
-        surname = " ".join(surnames) if surnames else ""
-        result = " ".join((name, surname))
+        result = " ".join(name)
         return result if result != " " else "No name"
 
-    def get_skills(self):
-        skills = []
+    def get_mail(self):
         for field in self.fields:
-            if field.field_description == "Skill":
-                skills.append(field.value)
-        return "; ".join(skills) if skills else ""
+            if field.field_description == "Email":
+                return field.value
+        return ""
 
-    def get_city(self):
+    def get_note(self):
         for field in self.fields:
-            if field.field_description == "City":
+            if field.field_description == "Note":
                 return field.value
         return ""
 
@@ -282,78 +234,76 @@ class Developer:
 
 class AddressBook:
     def __init__(self):
-        self.developers = {}
-        self.last_developer_id = 0
+        self.contacts = {}
+        self.last_contact_id = 0
 
     def __getitem__(self, key):
-        return self.developers[key]
+        return self.contacts[key]
 
     def dumps(self):
-        developers = {rec_id: rec.to_json() for rec_id, rec in self.developers.items()}
-        return json.dumps(developers)
+        contacts = {rec_id: rec.to_json() for rec_id, rec in self.contacts.items()}
+        return json.dumps(contacts)
 
-    def loads(self, bytes_developers): #Достать из файла и сделать объектом
-        self.developers.clear()
-        self.last_developer_id = 0
-        json_developers = json.loads(bytes_developers)
-        for _, developer_list in json_developers.items():
-            developer = Developer()
-            developer.from_json(developer_list)
-            self.add(developer)
-            # self.developers[int(developer_id)] = developer
-        # self.last_developer_id = max(self.developers.keys()) + 1
+    def loads(self, bytes_contacts): #Достать из файла и сделать объектом
+        self.contacts.clear()
+        self.last_contacts_id = 0
+        json_contacts = json.loads(bytes_contacts)
+        for _, contact_list in json_contacts.items():
+            contact = Contact()
+            contact.from_json(contact_list)
+            self.add(contact)
+        
 
-    def add(self, developer):  # Добавить элемент
-        self.developers[self.last_developer_id] = developer
-        developer_id = self.last_developer_id
-        self.last_developer_id += 1
-        return developer_id
+    def add(self, contact):  # Добавить элемент
+        self.contacts[self.last_contact_id] = contact
+        contact_id = self.last_contact_id
+        self.last_contact_id += 1
+        return contact_id
 
-    def replace(self, developer_id, developer):   #Заменить
-        if developer_id not in self.developers:
-            raise KeyError(f"developer {developer_id} not found")
-        self.developers[developer_id] = developer
+    def replace(self, contact_id, contact):   #Заменить
+        if contact_id not in self.contacts:
+            raise KeyError(f"contact {contact_id} not found")
+        self.contacts[contact_id] = contact
 
     @index_error_decorator
-    def delete(self, developer_id):   #Удалить
-        key = int(developer_id)
-        self.developers.pop(key)
+    def delete(self, contact_id):   #Удалить
+        key = int(contact_id)
+        self.contacts.pop(key)
 
     def str_search(self, search_str: str):   #поиск строки
         result = {}
-        for developer_id, developer in self.developers.items():
-            if search_str in developer:
-                result[developer_id] = developer
+        for contact_id, contact in self.contacts.items():
+            if search_str in contact:
+                result[contact_id] = contact
         return result
 
     def multiple_search(self, **search_items): # множественный поиск (убрать, т.к. указатели)
         result = {}
-        for developer_id, developer in self.developers.items():
-            if developer.multiple_search(**search_items):
-                result[developer_id] = developer
+        for contact_id, contact in self.contacts.items():
+            if contact.multiple_search(**search_items):
+                result[contact_id] = contact
         return result
 
     def clear(self):    #очистить
-        self.developers.clear()
-        self.last_developer_id = 0
+        self.contacts.clear()
+        self.last_contact_id = 0
 
 
 app = Flask("answer")
 AB = AddressBook()
-# CORS(app)
+
 with open("ab.json") as file:
-    # developers = json.load(file)
     AB.loads(file.read())
 
 
 @app.errorhandler(KeyError)
-def handle_developer_not_found(_):
-    return render_template("error.jinja", message="Запись не найдена")
+def handle_contact_not_found(_):
+    return render_template("error.jinja", message="Record not found")
 
 
 @app.errorhandler(IndexError)
 def handle_field_not_found(_):
-    return render_template("error.jinja", message="Поле не найдено")
+    return render_template("error.jinja", message="Field not found")
 
 
 @app.errorhandler(IncorrectInput)
@@ -369,8 +319,9 @@ def handle_invalid_format(error):
 @app.route("/")
 def ab():
     return render_template(
-        "developers.jinja", developers=AB.developers, stat_url=url_for("search_stat")
+        "contacts.jinja", contacts=AB.contacts, stat_url=''
     )
+
 
 
 @app.route("/dump")
@@ -406,7 +357,7 @@ def search():
         return render_template("search.jinja", fields=REGISTERED_FIELDS.keys())
 
     if request.form["value"] != "":
-        stat_url = url_for("search_stat", all=request.form["value"])
+        #stat_url = url_for("search_stat", all=request.form["value"])
         search_result = AB.str_search(request.form["value"])
     else:
         fields = [field for field in request.form.to_dict(flat=False)["field"]]
@@ -415,78 +366,58 @@ def search():
             field: value for field, value in filter(lambda x: x[1], zip(fields, values))
         }
         print(search_query)
-        stat_url = url_for("search_stat", **search_query)
+        #stat_url = url_for("search_stat", **search_query)
         search_result = AB.multiple_search(**search_query)
-    return render_template("developers.jinja", developers=search_result, stat_url=stat_url)
+    return render_template("contacts.jinja", contacts=search_result, stat_url='')
 
 
-@app.route("/search/stat")
-def search_stat():
-    search_query = request.args.to_dict()
-    if search_query:
-        if "all" in search_query:
-            search_result = AB.str_search(search_query["all"])
-        else:
-            search_result = AB.multiple_search(**search_query)
-        print(search_query, search_result)
-        search_statistics = get_rate_stat(search_result.values())
-    else:
-        search_statistics = get_rate_stat(AB.developers.values())
-    return render_template(
-        "statistics.jinja", statistics=search_statistics, search=search_query
-    )
+@app.route("/ab/contact", methods=("GET", "POST"))
+def new_contact():
+    contact = Contact()
+    contact_id = AB.add(contact)
+    return redirect(url_for(endpoint="contact", contact_id=contact_id))
 
 
-@app.route("/ab/developer", methods=("GET", "POST"))
-def new_developer():
-    developer = Developer()
-    developer_id = AB.add(developer)
-    return redirect(url_for(endpoint="developer", developer_id=developer_id))
+@app.route("/ab/contact/<int:contact_id>/delete")
+def delete_contact(contact_id):
+    AB.delete(contact_id)
+    return redirect(url_for(endpoint="ab", contact_id=contact_id))
 
 
-@app.route("/ab/developer/<int:developer_id>/delete")
-def delete_developer(developer_id):
-    AB.delete(developer_id)
-    return redirect(url_for(endpoint="ab", developer_id=developer_id))
-
-
-@app.route("/ab/developer/<int:developer_id>", methods=("GET", "POST"))
-def developer(developer_id):
-    current_developer = AB[developer_id]
+@app.route("/ab/contact/<int:contact_id>", methods=("GET", "POST"))
+def contact(contact_id):
+    current_contact = AB[contact_id]
     if request.method == "POST":
         if "idx" in request.form:
             idxs = [int(idx) for idx in request.form.to_dict(flat=False)["idx"]]
             types = [f_type for f_type in request.form.to_dict(flat=False)["type"]]
             values = [value for value in request.form.to_dict(flat=False)["value"]]
             for idx, f_type, value in zip(idxs, types, values):
-                current_developer.update(idx, value)
+                current_contact.update(idx, value)
         else:
             field_class = REGISTERED_FIELDS[request.form["type"]]
             field = field_class(request.form["value"])
-            current_developer.add(field)
+            current_contact.add(field)
 
     return render_template(
-        "developer.jinja",
-        developer=current_developer,
-        developer_id=developer_id,
+        "contact.jinja",
+        contact=current_contact,
+        contact_id=contact_id,
         fields=REGISTERED_FIELDS.keys(),
     )
 
 
-@app.route("/ab/developer/<int:developer_id>/field/<int:field_index>/delete")
-def delete_field(developer_id, field_index):
-    current_developer = AB[developer_id]
-    current_developer.delete(field_index)
-    return redirect(url_for("developer", developer_id=developer_id))
+@app.route("/ab/contact/<int:contact_id>/field/<int:field_index>/delete")
+def delete_field(contact_id, field_index):
+    current_contact = AB[contact_id]
+    current_contact.delete(field_index)
+    return redirect(url_for("contact", contact_id=contact_id))
 
 
 def main():
     from werkzeug.serving import run_simple
 
     run_simple("0.0.0.0", 5050, app)
-    # BEGIN SOLUTION
-    # app.run(host="0.0.0.0", port=8080)
-    # END SOLUTION
 
 
 if __name__ == "__main__":
